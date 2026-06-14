@@ -53,8 +53,14 @@ export function usePyodide() {
 
         // Dynamically load Pyodide script
         await new Promise((resolve, reject) => {
-          if (document.querySelector(`script[src="${PYODIDE_CDN}"]`)) {
+          if (window.loadPyodide) {
             resolve();
+            return;
+          }
+          const existingScript = document.querySelector(`script[src="${PYODIDE_CDN}"]`);
+          if (existingScript) {
+            existingScript.addEventListener('load', resolve);
+            existingScript.addEventListener('error', reject);
             return;
           }
           const script = document.createElement('script');
