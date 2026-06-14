@@ -1,16 +1,63 @@
-# React + Vite
+# PyIDE — Browser Python Compiler
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Fully functional, browser-based Python IDE built with React and Vite. Zero backend required.
 
-Currently, two official plugins are available:
+![PyIDE](public/favicon.svg)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **In-Browser Execution**: Runs Python completely locally in the browser using [Pyodide](https://pyodide.org/) (CPython compiled to WebAssembly).
+- **Virtual File System**: Create, rename, and delete files and folders. Files are synced to the Pyodide runtime so you can `import` across multiple files normally.
+- **Code Editor**: Integrated [Monaco Editor](https://microsoft.github.io/monaco-editor/) (VS Code engine) with full Python syntax highlighting, autocomplete, bracket matching, and a custom dark theme.
+- **Interactive Terminal**: [Xterm.js](https://xtermjs.org/) terminal with ANSI color support. Fully supports interactive `input()` prompts — the terminal will pause and wait for user keyboard input during execution.
+- **Package Manager**: Install third-party Python packages from PyPI (e.g., `numpy`, `pandas`) dynamically via Pyodide's `micropip`.
+- **Offline Persistence**: Your code and files are automatically saved to the browser's `localStorage` and restored on your next visit.
+- **Responsive Layout**: Resizable split panels on desktop, and a mobile-friendly tabbed interface for smaller screens.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech Stack
 
-## Expanding the ESLint configuration
+- **Framework**: React + Vite
+- **State Management**: Zustand
+- **Python Runtime**: Pyodide
+- **Editor Component**: `@monaco-editor/react`
+- **Terminal Component**: `@xterm/xterm`
+- **Styling**: Vanilla CSS with custom CSS variables (Dark Theme)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Getting Started
+
+### Prerequisites
+
+You only need Node.js installed to run the development server.
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/adhithyan-pradeep/Python-Compiler.git
+   cd "Python Compiler"
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open your browser to `http://localhost:5173`.
+
+> **Note on Vite Config**: The project requires `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` headers to be set in `vite.config.js`. This cross-origin isolation is required by Pyodide to enable `SharedArrayBuffer` for optimal WASM performance.
+
+## Usage
+
+1. **Write Code**: Edit `main.py` in the center panel.
+2. **Multiple Files**: Use the Explorer on the left to create new files like `utils.py`. You can `import utils` inside `main.py`.
+3. **Run**: Click the "Run" button in the top right or press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> inside the editor.
+4. **Install Packages**: Click the "Packages" button to search and install libraries like `matplotlib` or `requests`.
+
+## License
+
+MIT
