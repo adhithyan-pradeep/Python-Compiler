@@ -1,0 +1,48 @@
+.resizable-container {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.panel {
+  height: 100%;
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.separator {
+  width: 5px;
+  height: 100%;
+  background: var(--border);
+  cursor: col-resize;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.separator:hover,
+.separator:active {
+  background: var(--accent);
+}
+
+.separator-handle {
+  width: 2px;
+  height: 40px;
+  background: currentColor;
+  border-radius: 2px;
+  opacity: 0.4;
+  transition: opacity 0.15s, height 0.15s;
+}
+
+.separator:hover .separator-handle,
+.separator:active .separator-handle {
+  opacity: 1;
+  height: 60px;
+}
