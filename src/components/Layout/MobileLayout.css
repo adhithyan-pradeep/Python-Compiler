@@ -30,7 +30,7 @@
   border-top: 1px solid var(--border);
   background: var(--bg-topbar);
   flex-shrink: 0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
 .mobile-tabbar-btn {
