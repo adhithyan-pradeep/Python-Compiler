@@ -27,7 +27,7 @@ export default function App() {
 
   const { files, activeFile, isRunning } = useStore();
 
-  const { ready, loadingStatus, runCode, installPackage, provideStdin } = usePyodide();
+  const { ready, loadingStatus, runCode, installPackage, provideStdin, registerInputMode } = usePyodide();
 
   const handleRun = useCallback(() => {
     if (!ready || isRunning) return;
@@ -39,6 +39,7 @@ export default function App() {
   const terminal = (
     <Terminal
       provideStdin={provideStdin}
+      registerInputMode={registerInputMode}
       isRunning={isRunning}
     />
   );

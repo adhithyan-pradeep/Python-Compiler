@@ -20,22 +20,19 @@ const ANSI = {
   purple: '\x1b[38;2;199;146;234m',
 };
 
-export default function Terminal({ provideStdin, isRunning }) {
+export default function Terminal({ provideStdin, registerInputMode, isRunning }) {
   const termRef = useRef(null);
   const xtermRef = useRef(null);
-  const fitAddonRef = useRef(null);
   const containerRef = useRef(null);
-  const resizeObserverRef = useRef(null);
 
-  // Interactive stdin state
+  // Interactive stdin state — all in refs so xterm's onKey closure always sees current value
   const inputBufferRef = useRef('');
-  const inputModeRef = useRef(false); // true when Python is waiting for input()
-  const cursorPosRef = useRef(0);
+  const inputModeRef = useRef(false);
 
   const { terminalLines, clearTerminal } = useStore();
   const prevLinesLengthRef = useRef(0);
 
-  // Initialize XTerm
+  // Initialize XTerm once
   useEffect(() => {
     const xterm = new XTerm({
       theme: {
@@ -64,7 +61,6 @@ export default function Terminal({ provideStdin, isRunning }) {
       fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace',
       fontSize: 13.5,
       lineHeight: 1.5,
-      letterSpacing: 0,
       cursorBlink: true,
       cursorStyle: 'bar',
       scrollback: 5000,
@@ -77,60 +73,49 @@ export default function Terminal({ provideStdin, isRunning }) {
     const webLinksAddon = new WebLinksAddon();
     xterm.loadAddon(fitAddon);
     xterm.loadAddon(webLinksAddon);
-
     xterm.open(termRef.current);
     fitAddon.fit();
-
     xtermRef.current = xterm;
-    fitAddonRef.current = fitAddon;
 
-    // Print welcome banner
+    // Welcome banner
     setTimeout(() => {
-      xterm.writeln(
-        `${ANSI.cyan}${ANSI.bold}╔══════════════════════════════════════╗${ANSI.reset}`
-      );
-      xterm.writeln(
-        `${ANSI.cyan}${ANSI.bold}║  🐍 PyIDE — Python Browser Compiler  ║${ANSI.reset}`
-      );
-      xterm.writeln(
-        `${ANSI.cyan}${ANSI.bold}╚══════════════════════════════════════╝${ANSI.reset}`
-      );
+      xterm.writeln(`${ANSI.cyan}${ANSI.bold}╔══════════════════════════════════════╗${ANSI.reset}`);
+      xterm.writeln(`${ANSI.cyan}${ANSI.bold}║  🐍 PyIDE — Python Browser Compiler  ║${ANSI.reset}`);
+      xterm.writeln(`${ANSI.cyan}${ANSI.bold}╚══════════════════════════════════════╝${ANSI.reset}`);
       xterm.writeln('');
       xterm.writeln(`${ANSI.gray}Press Ctrl+Enter in the editor or click Run to execute.${ANSI.reset}`);
       xterm.writeln('');
     }, 100);
 
-    // Handle keyboard input for interactive stdin
+    // Keyboard handler — only active in input mode
     xterm.onKey(({ key, domEvent }) => {
       if (!inputModeRef.current) return;
 
-      const printable =
-        !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
-
       if (domEvent.key === 'Enter') {
-        xterm.writeln('');
+        xterm.write('\r\n');
         const line = inputBufferRef.current;
         inputBufferRef.current = '';
-        cursorPosRef.current = 0;
-        provideStdin?.(line);
         inputModeRef.current = false;
+        provideStdin?.(line);
       } else if (domEvent.key === 'Backspace') {
         if (inputBufferRef.current.length > 0) {
           inputBufferRef.current = inputBufferRef.current.slice(0, -1);
-          cursorPosRef.current = Math.max(0, cursorPosRef.current - 1);
           xterm.write('\b \b');
         }
-      } else if (printable && key.length === 1) {
+      } else if (
+        !domEvent.ctrlKey &&
+        !domEvent.altKey &&
+        !domEvent.metaKey &&
+        key.length === 1
+      ) {
         inputBufferRef.current += key;
-        cursorPosRef.current++;
         xterm.write(key);
       }
     });
 
-    // Paste support
+    // Paste in input mode
     xterm.onData((data) => {
       if (!inputModeRef.current) return;
-      // Filter to printable ASCII
       const safe = data.replace(/[^\x20-\x7E]/g, '');
       if (safe) {
         inputBufferRef.current += safe;
@@ -143,7 +128,6 @@ export default function Terminal({ provideStdin, isRunning }) {
       try { fitAddon.fit(); } catch (_) {}
     });
     ro.observe(containerRef.current);
-    resizeObserverRef.current = ro;
 
     return () => {
       ro.disconnect();
@@ -151,15 +135,25 @@ export default function Terminal({ provideStdin, isRunning }) {
     };
   }, []);
 
-  // Write new terminal lines from store to xterm
+  // Register the enableInputMode callback with usePyodide so it can activate us
+  useEffect(() => {
+    registerInputMode?.(() => {
+      inputModeRef.current = true;
+      inputBufferRef.current = '';
+      // Focus terminal so user can type immediately
+      xtermRef.current?.focus();
+    });
+  }, [registerInputMode]);
+
+  // Render new lines arriving in the store
   useEffect(() => {
     const xterm = xtermRef.current;
     if (!xterm) return;
 
     const lines = terminalLines;
 
+    // Handle clear
     if (lines.length < prevLinesLengthRef.current) {
-      // Clear happened — reset terminal
       xterm.reset();
       xterm.clear();
       prevLinesLengthRef.current = 0;
@@ -173,12 +167,21 @@ export default function Terminal({ provideStdin, isRunning }) {
         case 'stdout':
           xterm.write(`${ANSI.white}${line.text}${ANSI.reset}\r\n`);
           break;
+
         case 'stderr':
           xterm.write(`${ANSI.red}${line.text}${ANSI.reset}\r\n`);
           break;
+
         case 'stdin':
-          // Already echoed in the input handler
+          // Already echoed character-by-character as user types
           break;
+
+        case 'input_prompt':
+          // Show the prompt string (e.g. "Enter your name: ")
+          // Input mode is activated separately via registerInputMode callback
+          xterm.write(`${ANSI.yellow}${line.text}${ANSI.reset}`);
+          break;
+
         case 'system':
           if (line.text.startsWith('▶')) {
             xterm.write(`\r\n${ANSI.cyan}${ANSI.bold}${line.text}${ANSI.reset}\r\n`);
@@ -190,19 +193,14 @@ export default function Terminal({ provideStdin, isRunning }) {
             xterm.write(`${ANSI.gray}${line.text}${ANSI.reset}\r\n`);
           }
           break;
-        case 'input_prompt':
-          // Python issued input() — enable interactive mode and show prompt
-          inputModeRef.current = true;
-          inputBufferRef.current = '';
-          xterm.write(`${ANSI.yellow}${line.text}${ANSI.reset}`);
-          break;
+
         default:
           xterm.write(`${line.text}\r\n`);
       }
     });
   }, [terminalLines]);
 
-  // Enable input mode when running (detect input() prompts from Python)
+  // Disable input mode when run finishes
   useEffect(() => {
     if (!isRunning) {
       inputModeRef.current = false;
