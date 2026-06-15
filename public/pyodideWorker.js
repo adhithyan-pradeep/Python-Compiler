@@ -21,7 +21,7 @@ self.onmessage = async (e) => {
 
       // Setup synchronous stdin via SharedArrayBuffer
       pyodide.setStdin({
-        isatty: true,
+        isatty: false,
         stdin: () => {
           if (stdinIndex >= stdinString.length) {
             self.postMessage({ type: 'input_request' });

@@ -87,8 +87,8 @@ export default function Terminal({ provideStdin, registerInputMode, isRunning })
       xterm.writeln('');
     }, 100);
 
-    // Keyboard handler — only active in input mode
-    xterm.onKey(({ key, domEvent }) => {
+    // Keyboard handler for special keys
+    xterm.onKey(({ domEvent }) => {
       if (!inputModeRef.current) return;
 
       if (domEvent.key === 'Enter') {
@@ -102,20 +102,15 @@ export default function Terminal({ provideStdin, registerInputMode, isRunning })
           inputBufferRef.current = inputBufferRef.current.slice(0, -1);
           xterm.write('\b \b');
         }
-      } else if (
-        !domEvent.ctrlKey &&
-        !domEvent.altKey &&
-        !domEvent.metaKey &&
-        key.length === 1
-      ) {
-        inputBufferRef.current += key;
-        xterm.write(key);
       }
     });
 
-    // Paste in input mode
+    // Handle all printable input (typing + paste)
     xterm.onData((data) => {
       if (!inputModeRef.current) return;
+      // Skip backspace (\x7f) and enter (\r) which are handled by onKey
+      if (data === '\x7f' || data === '\r') return;
+      
       const safe = data.replace(/[^\x20-\x7E]/g, '');
       if (safe) {
         inputBufferRef.current += safe;
