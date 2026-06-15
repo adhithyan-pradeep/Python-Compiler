@@ -11,39 +11,35 @@ export function usePyodide() {
   const pyRef = useRef(null);
 
   // stdin queue for interactive input()
-  const stdinQueue = useRef([]);
   const stdinResolvers = useRef([]);
+
+  // Ref to the terminal's "enter input mode" function — set by Terminal component
+  const enableInputModeRef = useRef(null);
 
   const { appendTerminalLine, setIsRunning, addInstalledPackage } = useStore();
 
-  // Provide next stdin line — returns a Promise that resolves when user types
+  // Called by Terminal component to register the input-mode activator
+  const registerInputMode = useCallback((fn) => {
+    enableInputModeRef.current = fn;
+  }, []);
+
+  // Called by Terminal when user presses Enter — resolves pending Python input()
   const provideStdin = useCallback((line) => {
     if (stdinResolvers.current.length > 0) {
       const resolve = stdinResolvers.current.shift();
       resolve(line);
-    } else {
-      stdinQueue.current.push(line);
     }
-  }, []);
-
-  // Called by Python's input() — waits for user to type
-  const readStdinLine = useCallback(() => {
-    return new Promise((resolve) => {
-      if (stdinQueue.current.length > 0) {
-        resolve(stdinQueue.current.shift());
-      } else {
-        stdinResolvers.current.push(resolve);
-      }
-    });
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadPyodide() {
+    async function initPyodide() {
       try {
         if (pyodideInstance) {
           pyRef.current = pyodideInstance;
+          // Re-register input shim on cached instance (new session may need it)
+          registerInputShim(pyodideInstance);
           setReady(true);
           setLoadingStatus('');
           return;
@@ -78,20 +74,12 @@ export function usePyodide() {
           stderr: (text) => appendTerminalLine({ type: 'stderr', text }),
         });
 
-        // Override stdin to use our interactive queue
-        py.setStdin({
-          isatty: true,
-          readline: async () => {
-            const line = await readStdinLine();
-            // Echo input back to terminal
-            appendTerminalLine({ type: 'stdin', text: line });
-            return line + '\n';
-          },
-        });
-
-        // Load micropip for package installs
+        // Load micropip
         setLoadingStatus('Loading package manager...');
         await py.loadPackagesFromImports('import micropip');
+
+        // Patch builtins.input to use our terminal
+        registerInputShim(py);
 
         if (!cancelled) {
           pyodideInstance = py;
@@ -107,7 +95,37 @@ export function usePyodide() {
       }
     }
 
-    loadPyodide();
+    function registerInputShim(py) {
+      // Expose a JS function that Python can call to get a line of stdin
+      // This returns a Promise — Python's async runtime awaits it
+      window.__pyide_request_input__ = async (prompt) => {
+        // Show prompt in terminal
+        appendTerminalLine({ type: 'input_prompt', text: prompt || '' });
+
+        // Activate input mode in the terminal UI
+        enableInputModeRef.current?.();
+
+        // Wait for user to type and press Enter
+        return new Promise((resolve) => {
+          stdinResolvers.current.push(resolve);
+        });
+      };
+
+      // Patch Python's built-in input() to call our JS function
+      py.runPython(`
+import builtins
+import js
+
+async def _pyide_input(prompt=''):
+    result = await js.__pyide_request_input__(str(prompt))
+    return result
+
+# Replace synchronous input with our async version
+builtins.input = _pyide_input
+`);
+    }
+
+    initPyodide();
     return () => { cancelled = true; };
   }, []);
 
@@ -133,15 +151,13 @@ await micropip.install('${packageName}')
 
     setIsRunning(true);
 
-    // Clear stdin queue from previous run
-    stdinQueue.current = [];
+    // Clear any pending stdin resolvers from previous run
     stdinResolvers.current = [];
 
     try {
       // Write all files to Pyodide filesystem
       py.FS.chdir('/home/pyodide');
       for (const [filename, content] of Object.entries(files)) {
-        // Support nested paths (folders)
         const parts = filename.split('/');
         if (parts.length > 1) {
           let dir = '/home/pyodide';
@@ -153,7 +169,7 @@ await micropip.install('${packageName}')
         py.FS.writeFile('/home/pyodide/' + filename, content, { encoding: 'utf8' });
       }
 
-      // Add current dir to sys.path
+      // Ensure working dir on sys.path
       await py.runPythonAsync(`
 import sys
 if '/home/pyodide' not in sys.path:
@@ -167,16 +183,15 @@ if '/home/pyodide' not in sys.path:
 
       appendTerminalLine({ type: 'system', text: '✓ Done' });
     } catch (err) {
-      // PythonError — show traceback
       const msg = err.message || String(err);
       appendTerminalLine({ type: 'stderr', text: msg });
     } finally {
       setIsRunning(false);
-      // Resolve any pending input() calls with empty string
+      // Unblock any hanging input() calls
       stdinResolvers.current.forEach((r) => r(''));
       stdinResolvers.current = [];
     }
   }, []);
 
-  return { ready, loadingStatus, runCode, installPackage, provideStdin };
+  return { ready, loadingStatus, runCode, installPackage, provideStdin, registerInputMode };
 }
