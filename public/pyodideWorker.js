@@ -16,24 +16,32 @@ self.onmessage = async (e) => {
       pyodide.setStdout({ batched: (text) => self.postMessage({ type: 'stdout', text }) });
       pyodide.setStderr({ batched: (text) => self.postMessage({ type: 'stderr', text }) });
       
+      let stdinString = "";
+      let stdinIndex = 0;
+
       // Setup synchronous stdin via SharedArrayBuffer
       pyodide.setStdin({
         isatty: true,
-        readline: () => {
-          self.postMessage({ type: 'input_request' });
-          const int32 = new Int32Array(stdinBuffer);
-          // Wait for main thread to set index 0 to 1
-          Atomics.wait(int32, 0, 0);
-          
-          // Read string from buffer
-          const len = int32[1];
-          const bytes = new Uint8Array(stdinBuffer, 8, len);
-          const decoder = new TextDecoder();
-          const str = decoder.decode(bytes);
-          
-          // Reset for next input
-          int32[0] = 0;
-          return str + '\n';
+        stdin: () => {
+          if (stdinIndex >= stdinString.length) {
+            self.postMessage({ type: 'input_request' });
+            const int32 = new Int32Array(stdinBuffer);
+            // Wait for main thread to set index 0 to 1
+            Atomics.wait(int32, 0, 0);
+            
+            // Read string from buffer
+            const len = int32[1];
+            const bytes = new Uint8Array(stdinBuffer, 8, len);
+            const decoder = new TextDecoder();
+            stdinString = decoder.decode(bytes) + '\n';
+            stdinIndex = 0;
+            
+            // Reset for next input
+            int32[0] = 0;
+          }
+          const charCode = stdinString.charCodeAt(stdinIndex);
+          stdinIndex++;
+          return charCode;
         }
       });
 
