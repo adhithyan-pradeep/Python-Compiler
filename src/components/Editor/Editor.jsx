@@ -74,15 +74,21 @@ function defineTheme(monaco) {
 
 export default function Editor({ onRun }) {
   const editorRef = useRef(null);
+  const onRunRef = useRef(onRun);
   const { files, activeFile, openTabs, updateFileContent, setActiveFile, closeTab } = useStore();
+
+  // Keep the ref in sync so Monaco's command always calls the latest onRun
+  useEffect(() => {
+    onRunRef.current = onRun;
+  }, [onRun]);
 
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
 
-    // Ctrl+Enter / Cmd+Enter → run
+    // Ctrl+Enter / Cmd+Enter → run (uses ref to avoid stale closure)
     editor.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
-      () => onRun?.()
+      () => onRunRef.current?.()
     );
 
     // Ctrl+S → save (no-op, already live, just prevent browser save)

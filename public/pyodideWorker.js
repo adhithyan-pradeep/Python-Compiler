@@ -84,6 +84,29 @@ builtins.input = _pyide_input
 import sys
 if '/home/pyodide' not in sys.path:
     sys.path.insert(0, '/home/pyodide')
+
+# Clear user globals from previous runs to prevent variable leakage
+import builtins as _builtins
+_keep = set(dir(_builtins)) | {'__name__', '__doc__', '__loader__', '__spec__', '__builtins__', '__file__'}
+_globs = list(globals().keys())
+for _k in _globs:
+    if _k not in _keep and not _k.startswith('_'):
+        del globals()[_k]
+del _globs, _keep, _k
+`);
+
+      // Re-patch builtins.input (in case user code overwrote it)
+      pyodide.runPython(`
+import builtins
+import js
+
+def _pyide_input(prompt=''):
+    if prompt:
+        from pyodide.ffi import to_js
+        js.postMessage(to_js({"type": "input_prompt", "text": str(prompt)}, dict_converter=js.Object.fromEntries))
+    return str(js.__pyide_readline__())
+
+builtins.input = _pyide_input
 `);
 
       await pyodide.runPythonAsync(files[activeFile] || '');
