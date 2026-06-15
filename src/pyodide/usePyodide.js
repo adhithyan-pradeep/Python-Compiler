@@ -1,195 +1,155 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import useStore from '../store/useStore';
 
-const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js';
-
-let pyodideInstance = null; // singleton
+let workerInstance = null; // singleton
+let nextId = 1;
+const resolvers = new Map();
+let stdinBuffer = null;
 
 export function usePyodide() {
   const [ready, setReady] = useState(false);
-  const [loadingStatus, setLoadingStatus] = useState('Initializing PyIDE...');
-  const pyRef = useRef(null);
+  const [loadingStatus, setLoadingStatus] = useState('Initializing PyIDE Worker...');
+  const workerRef = useRef(null);
 
-  // stdin queue for interactive input()
-  const stdinResolvers = useRef([]);
-
-  // Ref to the terminal's "enter input mode" function — set by Terminal component
   const enableInputModeRef = useRef(null);
 
   const { appendTerminalLine, setIsRunning, addInstalledPackage } = useStore();
 
-  // Called by Terminal component to register the input-mode activator
   const registerInputMode = useCallback((fn) => {
     enableInputModeRef.current = fn;
   }, []);
 
-  // Called by Terminal when user presses Enter — resolves pending Python input()
   const provideStdin = useCallback((line) => {
-    if (stdinResolvers.current.length > 0) {
-      const resolve = stdinResolvers.current.shift();
-      resolve(line);
-    }
+    if (!stdinBuffer) return;
+    const int32 = new Int32Array(stdinBuffer);
+    const bytes = new Uint8Array(stdinBuffer, 8);
+    const encoder = new TextEncoder();
+    const encoded = encoder.encode(line);
+    
+    // Copy to buffer (max 1024 bytes)
+    const len = Math.min(encoded.length, bytes.length);
+    bytes.set(encoded.subarray(0, len));
+    
+    int32[1] = len;
+    int32[0] = 1; // flag ready
+    Atomics.notify(int32, 0); // wake up worker
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function initPyodide() {
-      try {
-        if (pyodideInstance) {
-          pyRef.current = pyodideInstance;
-          // Re-register input shim on cached instance (new session may need it)
-          registerInputShim(pyodideInstance);
-          setReady(true);
-          setLoadingStatus('');
-          return;
-        }
-
-        setLoadingStatus('Loading Pyodide runtime...');
-
-        // Dynamically load Pyodide script
-        await new Promise((resolve, reject) => {
-          if (window.loadPyodide) {
-            resolve();
-            return;
-          }
-          const existingScript = document.querySelector(`script[src="${PYODIDE_CDN}"]`);
-          if (existingScript) {
-            existingScript.addEventListener('load', resolve);
-            existingScript.addEventListener('error', reject);
-            return;
-          }
-          const script = document.createElement('script');
-          script.src = PYODIDE_CDN;
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-
-        setLoadingStatus('Initializing Python...');
-
-        const py = await window.loadPyodide({
-          indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.2/full/',
-          stdout: (text) => appendTerminalLine({ type: 'stdout', text }),
-          stderr: (text) => appendTerminalLine({ type: 'stderr', text }),
-        });
-
-        // Load micropip
-        setLoadingStatus('Loading package manager...');
-        await py.loadPackagesFromImports('import micropip');
-
-        // Patch builtins.input to use our terminal
-        registerInputShim(py);
-
-        if (!cancelled) {
-          pyodideInstance = py;
-          pyRef.current = py;
-          setReady(true);
-          setLoadingStatus('');
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setLoadingStatus(`Failed to load: ${err.message}`);
-          appendTerminalLine({ type: 'stderr', text: `Pyodide load error: ${err.message}` });
-        }
+    async function initWorker() {
+      if (workerInstance) {
+        workerRef.current = workerInstance;
+        setReady(true);
+        setLoadingStatus('');
+        return;
       }
-    }
 
-    function registerInputShim(py) {
-      // Expose a JS function that Python can call to get a line of stdin
-      // This returns a Promise — Python's async runtime awaits it
-      window.__pyide_request_input__ = async (prompt) => {
-        // Show prompt in terminal
-        appendTerminalLine({ type: 'input_prompt', text: prompt || '' });
+      setLoadingStatus('Starting WebWorker...');
+      
+      const worker = new Worker('/pyodideWorker.js');
+      workerInstance = worker;
+      workerRef.current = worker;
+      
+      // 1032 bytes: 8 bytes for int32 array (flag, length), 1024 for string data
+      stdinBuffer = new SharedArrayBuffer(1032);
 
-        // Activate input mode in the terminal UI
-        enableInputModeRef.current?.();
-
-        // Wait for user to type and press Enter
-        return new Promise((resolve) => {
-          stdinResolvers.current.push(resolve);
-        });
+      worker.onmessage = (e) => {
+        const { type, text, error, id } = e.data;
+        if (type === 'stdout') {
+          appendTerminalLine({ type: 'stdout', text });
+        } else if (type === 'stderr') {
+          appendTerminalLine({ type: 'stderr', text });
+        } else if (type === 'input_prompt') {
+          appendTerminalLine({ type: 'input_prompt', text });
+        } else if (type === 'input_request') {
+           enableInputModeRef.current?.();
+        } else if (type === 'INIT_DONE' || type === 'RUN_DONE' || type === 'INSTALL_DONE') {
+          if (resolvers.has(id)) {
+            resolvers.get(id).resolve();
+            resolvers.delete(id);
+          }
+        } else if (type === 'ERROR') {
+          if (resolvers.has(id)) {
+            resolvers.get(id).reject(new Error(error));
+            resolvers.delete(id);
+          }
+        }
       };
 
-      // Patch Python's built-in input() to call our JS function
-      py.runPython(`
-import builtins
-import js
+      const id = nextId++;
+      resolvers.set(id, {
+        resolve: () => {
+          if (!cancelled) {
+             setReady(true);
+             setLoadingStatus('');
+          }
+        },
+        reject: (err) => {
+          if (!cancelled) {
+             setLoadingStatus('Worker Init Failed');
+             appendTerminalLine({ type: 'stderr', text: err.message });
+          }
+        }
+      });
 
-async def _pyide_input(prompt=''):
-    result = await js.__pyide_request_input__(str(prompt))
-    return result
-
-# Replace synchronous input with our async version
-builtins.input = _pyide_input
-`);
+      worker.postMessage({ type: 'INIT', id, stdinBuffer });
     }
 
-    initPyodide();
+    initWorker();
     return () => { cancelled = true; };
   }, []);
 
   const installPackage = useCallback(async (packageName) => {
-    if (!pyRef.current) return;
-    const py = pyRef.current;
-    try {
-      appendTerminalLine({ type: 'system', text: `Installing ${packageName}...` });
-      await py.runPythonAsync(`
-import micropip
-await micropip.install('${packageName}')
-`);
-      appendTerminalLine({ type: 'system', text: `✓ ${packageName} installed` });
-      addInstalledPackage(packageName);
-    } catch (err) {
-      appendTerminalLine({ type: 'stderr', text: `Install failed: ${err.message}` });
-    }
+    if (!workerRef.current) return;
+    const id = nextId++;
+    appendTerminalLine({ type: 'system', text: `Installing ${packageName}...` });
+    
+    return new Promise((resolve, reject) => {
+      resolvers.set(id, {
+        resolve: () => {
+           appendTerminalLine({ type: 'system', text: `✓ ${packageName} installed` });
+           addInstalledPackage(packageName);
+           resolve();
+        },
+        reject: (err) => {
+           appendTerminalLine({ type: 'stderr', text: `Install failed: ${err.message}` });
+           resolve(); // Resolve anyway so UI doesn't hang
+        }
+      });
+      workerRef.current.postMessage({ type: 'INSTALL', id, packageToInstall: packageName });
+    });
   }, []);
 
   const runCode = useCallback(async (files, activeFile) => {
-    if (!pyRef.current || !activeFile) return;
-    const py = pyRef.current;
+    if (!workerRef.current || !activeFile) return;
 
     setIsRunning(true);
-
-    // Clear any pending stdin resolvers from previous run
-    stdinResolvers.current = [];
+    const id = nextId++;
 
     try {
-      // Write all files to Pyodide filesystem
-      py.FS.chdir('/home/pyodide');
-      for (const [filename, content] of Object.entries(files)) {
-        const parts = filename.split('/');
-        if (parts.length > 1) {
-          let dir = '/home/pyodide';
-          for (let i = 0; i < parts.length - 1; i++) {
-            dir += '/' + parts[i];
-            try { py.FS.mkdir(dir); } catch (_) {}
-          }
-        }
-        py.FS.writeFile('/home/pyodide/' + filename, content, { encoding: 'utf8' });
-      }
-
-      // Ensure working dir on sys.path
-      await py.runPythonAsync(`
-import sys
-if '/home/pyodide' not in sys.path:
-    sys.path.insert(0, '/home/pyodide')
-`);
-
       appendTerminalLine({ type: 'system', text: `▶ Running ${activeFile}` });
-
-      const code = files[activeFile] || '';
-      await py.runPythonAsync(code);
+      
+      await new Promise((resolve, reject) => {
+        resolvers.set(id, { resolve, reject });
+        workerRef.current.postMessage({ type: 'RUN', id, files, activeFile });
+      });
 
       appendTerminalLine({ type: 'system', text: '✓ Done' });
     } catch (err) {
-      const msg = err.message || String(err);
-      appendTerminalLine({ type: 'stderr', text: msg });
+      appendTerminalLine({ type: 'stderr', text: err.message });
     } finally {
       setIsRunning(false);
-      // Unblock any hanging input() calls
-      stdinResolvers.current.forEach((r) => r(''));
-      stdinResolvers.current = [];
+      // Clean up hanging input wait just in case
+      if (stdinBuffer) {
+        const int32 = new Int32Array(stdinBuffer);
+        if (int32[0] === 0) {
+           int32[1] = 0;
+           int32[0] = 1;
+           Atomics.notify(int32, 0);
+        }
+      }
     }
   }, []);
 
