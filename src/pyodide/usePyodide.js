@@ -128,6 +128,13 @@ export function usePyodide() {
     setIsRunning(true);
     const id = nextId++;
 
+    // Reset stdin buffer flag so input() blocks properly on this run
+    if (stdinBuffer) {
+      const int32 = new Int32Array(stdinBuffer);
+      int32[0] = 0;
+      int32[1] = 0;
+    }
+
     try {
       appendTerminalLine({ type: 'system', text: `▶ Running ${activeFile}` });
       
@@ -141,15 +148,6 @@ export function usePyodide() {
       appendTerminalLine({ type: 'stderr', text: err.message });
     } finally {
       setIsRunning(false);
-      // Clean up hanging input wait just in case
-      if (stdinBuffer) {
-        const int32 = new Int32Array(stdinBuffer);
-        if (int32[0] === 0) {
-           int32[1] = 0;
-           int32[0] = 1;
-           Atomics.notify(int32, 0);
-        }
-      }
     }
   }, []);
 
