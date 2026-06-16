@@ -1,0 +1,26 @@
+Pynapple - Future Update Ideas (Ponytail Approved)
+
+1. URL-Based Sharing (High Impact, Zero Backend)
+   - Compress the `files` object from Zustand, Base64 encode it, append to URL hash (#code=...).
+   - On load, if hash exists, hydrate Zustand store.
+   - Cost: $0. Complexity: Low.
+
+2. Auto-Save (Debounced)
+   - Instead of saving strictly on every keystroke, debounce the Zustand store update to `localStorage`.
+   - Prevents jank if the file gets large.
+
+3. Lazy-Load Pyodide (Performance)
+   - Only load Pyodide (and its hefty WASM binaries) when the user clicks "Run" or actively types code.
+   - Faster initial page load (TTVC).
+
+4. Pre-packaged Environments (Niche but useful)
+   - Add a dropdown for "Data Science" that auto-installs `pandas` and `numpy` via Micropip on startup.
+   - Useful if users frequently install the same heavy packages.
+
+5. Basic Command Palette (Ctrl+P)
+   - Just a simple fuzzy search over the virtual file system to switch tabs quickly.
+   - Use something tiny like `cmdk` or build a native one.
+
+6. Service Worker for Offline Mode
+   - Cache Pyodide WASM and the React bundle.
+   - Makes the app work fully offline (like a true native compiler).
