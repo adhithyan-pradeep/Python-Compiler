@@ -25,6 +25,8 @@ export default function Topbar({ onRun, onOpenPackages, isRunning, pyodideReady,
       {/* Logo */}
       <div className="topbar-logo">
         <span className="topbar-logo-icon">🍍</span>
+        <span className="topbar-logo-text">Pynapple</span>
+        <span className="topbar-logo-badge">BETA</span>
       </div>
 
       {/* Center: loading status */}
