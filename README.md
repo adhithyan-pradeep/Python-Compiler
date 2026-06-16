@@ -1,8 +1,8 @@
-# PyIDE — Browser Python Compiler
+# Pynapple — Browser Python Compiler
 
-Fully functional, browser-based Python IDE built with React and Vite. Zero backend required.
+A fully client-side Python IDE built with React, Pyodide, and Monaco Editor.
 
-![PyIDE](public/favicon.svg)
+![Pynapple](public/favicon.svg)
 
 ## Features
 

@@ -79,9 +79,9 @@ export default function Terminal({ provideStdin, registerInputMode, isRunning })
 
     // Welcome banner
     setTimeout(() => {
-      xterm.writeln(`${ANSI.cyan}${ANSI.bold}╔══════════════════════════════════════╗${ANSI.reset}`);
-      xterm.writeln(`${ANSI.cyan}${ANSI.bold}║  🐍 PyIDE — Python Browser Compiler  ║${ANSI.reset}`);
-      xterm.writeln(`${ANSI.cyan}${ANSI.bold}╚══════════════════════════════════════╝${ANSI.reset}`);
+      xterm.writeln(`${ANSI.cyan}${ANSI.bold}╔═════════════════════════════════════════╗${ANSI.reset}`);
+      xterm.writeln(`${ANSI.cyan}${ANSI.bold}║  🍍 Pynapple — Python Browser Compiler  ║${ANSI.reset}`);
+      xterm.writeln(`${ANSI.cyan}${ANSI.bold}╚═════════════════════════════════════════╝${ANSI.reset}`);
       xterm.writeln('');
       xterm.writeln(`${ANSI.gray}Press Ctrl+Enter in the editor or click Run to execute.${ANSI.reset}`);
       xterm.writeln('');

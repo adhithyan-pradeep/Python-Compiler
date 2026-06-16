@@ -105,7 +105,7 @@ export default function Editor({ onRun }) {
   const currentContent = activeFile ? (files[activeFile] ?? '') : '';
 
   const getFileIcon = (filename) => {
-    if (filename.endsWith('.py')) return '🐍';
+    if (filename.endsWith('.py')) return '🍍';
     if (filename.endsWith('.txt')) return '📄';
     if (filename.endsWith('.json')) return '📋';
     if (filename.endsWith('.md')) return '📝';
@@ -161,7 +161,7 @@ export default function Editor({ onRun }) {
         </div>
       ) : (
         <div className="editor-empty">
-          <div className="editor-empty-icon">🐍</div>
+          <div className="editor-empty-icon">🍍</div>
           <p>No file open</p>
           <p className="editor-empty-hint">Create or select a file from the explorer</p>
         </div>

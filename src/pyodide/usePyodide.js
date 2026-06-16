@@ -8,7 +8,7 @@ let stdinBuffer = null;
 
 export function usePyodide() {
   const [ready, setReady] = useState(false);
-  const [loadingStatus, setLoadingStatus] = useState('Initializing PyIDE Worker...');
+  const [loadingStatus, setLoadingStatus] = useState('Initializing Pynapple Worker...');
   const workerRef = useRef(null);
 
   const enableInputModeRef = useRef(null);

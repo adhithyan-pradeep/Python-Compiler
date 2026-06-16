@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 const DEFAULT_FILES = {
-  'main.py': `# Welcome to PyIDE!
+  'main.py': `# Welcome to Pynapple!
 # Try running this example or create your own files.
 
 def greet(name):
