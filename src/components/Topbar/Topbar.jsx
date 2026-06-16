@@ -1,7 +1,25 @@
-import { Play, Package, Loader2 } from 'lucide-react';
+import { Play, Package, Loader2, Download } from 'lucide-react';
+import JSZip from 'jszip';
+import useStore from '../../store/useStore';
 import './Topbar.css';
 
 export default function Topbar({ onRun, onOpenPackages, isRunning, pyodideReady, loadingStatus }) {
+  const handleDownload = async () => {
+    // ponytail: get state directly to avoid re-renders
+    const files = useStore.getState().files;
+    const zip = new JSZip();
+    Object.entries(files).forEach(([name, content]) => {
+      zip.file(name, content);
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'pynapple_project.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <header className="topbar">
       {/* Logo */}
@@ -21,6 +39,15 @@ export default function Topbar({ onRun, onOpenPackages, isRunning, pyodideReady,
 
       {/* Actions */}
       <div className="topbar-actions">
+        <button
+          className="topbar-btn topbar-btn-ghost"
+          onClick={handleDownload}
+          title="Download as ZIP"
+        >
+          <Download size={14} />
+          <span>Download</span>
+        </button>
+
         <button
           className="topbar-btn topbar-btn-ghost"
           onClick={onOpenPackages}
