@@ -1,9 +1,11 @@
-import { Play, Package, Loader2, Download } from 'lucide-react';
+import { Play, Package, Loader2, Download, Sun, Moon } from 'lucide-react';
 import JSZip from 'jszip';
 import useStore from '../../store/useStore';
 import './Topbar.css';
 
 export default function Topbar({ onRun, onOpenPackages, isRunning, pyodideReady, loadingStatus }) {
+  const { theme, toggleTheme } = useStore(); // ponytail: hook up store theme state
+
   const handleDownload = async () => {
     // ponytail: get state directly to avoid re-renders
     const files = useStore.getState().files;
@@ -37,6 +39,14 @@ export default function Topbar({ onRun, onOpenPackages, isRunning, pyodideReady,
 
       {/* Actions */}
       <div className="topbar-actions">
+        <button
+          className="topbar-btn topbar-btn-ghost theme-toggle"
+          onClick={toggleTheme}
+          title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+        >
+          {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+        </button>
+
         <button
           className="topbar-btn topbar-btn-ghost"
           onClick={handleDownload}

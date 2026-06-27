@@ -25,7 +25,12 @@ export default function App() {
   const [showPackages, setShowPackages] = useState(false);
   const isMobile = useIsMobile();
 
-  const { files, activeFile, isRunning } = useStore();
+  const { files, activeFile, isRunning, theme } = useStore();
+
+  useEffect(() => {
+    // ponytail: toggle data-theme attribute directly on document root
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const { ready, loadingStatus, runCode, installPackage, provideStdin, registerInputMode } = usePyodide();
 

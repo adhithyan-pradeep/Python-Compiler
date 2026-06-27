@@ -7,17 +7,17 @@ import useStore from '../../store/useStore';
 import '@xterm/xterm/css/xterm.css';
 import './Terminal.css';
 
-// ANSI color codes
+// ANSI color codes (ponytail: standard 4-bit ANSI codes so xterm themes them dynamically)
 const ANSI = {
   reset: '\x1b[0m',
   bold: '\x1b[1m',
-  red: '\x1b[38;2;248;81;73m',
-  green: '\x1b[38;2;63;185;80m',
-  yellow: '\x1b[38;2;255;203;107m',
-  cyan: '\x1b[38;2;88;166;255m',
-  gray: '\x1b[38;2;110;118;129m',
-  white: '\x1b[38;2;230;237;243m',
-  purple: '\x1b[38;2;199;146;234m',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  cyan: '\x1b[36m',
+  gray: '\x1b[90m',
+  white: '\x1b[37m',
+  purple: '\x1b[35m',
 };
 
 export default function Terminal({ provideStdin, registerInputMode, isRunning }) {
@@ -29,7 +29,7 @@ export default function Terminal({ provideStdin, registerInputMode, isRunning })
   const inputBufferRef = useRef('');
   const inputModeRef = useRef(false);
 
-  const { terminalLines, clearTerminal } = useStore();
+  const { terminalLines, clearTerminal, theme } = useStore();
   const prevLinesLengthRef = useRef(0);
 
   // Initialize XTerm once
@@ -140,6 +140,62 @@ export default function Terminal({ provideStdin, registerInputMode, isRunning })
     });
   }, [registerInputMode]);
 
+  // ponytail: dynamic xterm theme switching
+  useEffect(() => {
+    const xterm = xtermRef.current;
+    if (!xterm) return;
+
+    const darkTheme = {
+      background: '#0D1117',
+      foreground: '#E6EDF3',
+      cursor: '#58A6FF',
+      cursorAccent: '#0D1117',
+      selectionBackground: '#264F7840',
+      black: '#0D1117',
+      red: '#F85149',
+      green: '#3FB950',
+      yellow: '#D29922',
+      blue: '#58A6FF',
+      magenta: '#C792EA',
+      cyan: '#39C5CF',
+      white: '#E6EDF3',
+      brightBlack: '#6E7681',
+      brightRed: '#FF7B72',
+      brightGreen: '#56D364',
+      brightYellow: '#E3B341',
+      brightBlue: '#79C0FF',
+      brightMagenta: '#D2A8FF',
+      brightCyan: '#56D4DD',
+      brightWhite: '#F0F6FC',
+    };
+
+    const lightTheme = {
+      background: '#FFFFFF',
+      foreground: '#24292F',
+      cursor: '#0969DA',
+      cursorAccent: '#FFFFFF',
+      selectionBackground: '#0969DA20',
+      black: '#FFFFFF',
+      red: '#CF222E',
+      green: '#1A7F37',
+      yellow: '#9A6700',
+      blue: '#0969DA',
+      magenta: '#8250DF',
+      cyan: '#1F883D',
+      white: '#24292F',
+      brightBlack: '#57606A',
+      brightRed: '#D1242F',
+      brightGreen: '#1F883D',
+      brightYellow: '#B57C00',
+      brightBlue: '#2188FF',
+      brightMagenta: '#A873E8',
+      brightCyan: '#39A353',
+      brightWhite: '#57606A',
+    };
+
+    xterm.options.theme = theme === 'light' ? lightTheme : darkTheme;
+  }, [theme]);
+
   // Render new lines arriving in the store
   useEffect(() => {
     const xterm = xtermRef.current;
@@ -160,7 +216,8 @@ export default function Terminal({ provideStdin, registerInputMode, isRunning })
     newLines.forEach((line) => {
       switch (line.type) {
         case 'stdout':
-          xterm.write(`${ANSI.white}${line.text}${ANSI.reset}\r\n`);
+          // ponytail: standard stdout printed using default terminal foreground
+          xterm.write(`${line.text}\r\n`);
           break;
 
         case 'stderr':

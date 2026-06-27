@@ -32,7 +32,8 @@ const MONACO_OPTIONS = {
   theme: 'pyide-dark',
 };
 
-function defineTheme(monaco) {
+function defineThemes(monaco) {
+  // ponytail: define dark theme
   monaco.editor.defineTheme('pyide-dark', {
     base: 'vs-dark',
     inherit: true,
@@ -69,13 +70,50 @@ function defineTheme(monaco) {
       'scrollbarSlider.activeBackground': '#58A6FF60',
     },
   });
-  monaco.editor.setTheme('pyide-dark');
+
+  // ponytail: define light theme matching GitHub light look
+  monaco.editor.defineTheme('pyide-light', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'keyword', foreground: '0969DA', fontStyle: 'bold' },
+      { token: 'string', foreground: '1A7F37' },
+      { token: 'comment', foreground: '8C959F', fontStyle: 'italic' },
+      { token: 'number', foreground: '0550AE' },
+      { token: 'type', foreground: '953800' },
+      { token: 'function', foreground: '8250DF' },
+      { token: 'class', foreground: 'CF222E' },
+      { token: 'variable', foreground: '24292F' },
+      { token: 'operator', foreground: '0969DA' },
+      { token: 'delimiter', foreground: '24292F' },
+    ],
+    colors: {
+      'editor.background': '#FFFFFF',
+      'editor.foreground': '#24292F',
+      'editor.lineHighlightBackground': '#F6F8FA',
+      'editor.selectionBackground': '#0969DA20',
+      'editor.inactiveSelectionBackground': '#0969DA10',
+      'editorLineNumber.foreground': '#8C959F',
+      'editorLineNumber.activeForeground': '#57606A',
+      'editorCursor.foreground': '#0969DA',
+      'editor.findMatchBackground': '#FFD83B40',
+      'editor.findMatchHighlightBackground': '#FFD83B20',
+      'editorIndentGuide.background1': '#D0D7DE',
+      'editorIndentGuide.activeBackground1': '#8C959F',
+      'editorBracketMatch.background': '#0969DA20',
+      'editorBracketMatch.border': '#0969DA60',
+      'scrollbar.shadow': '#00000010',
+      'scrollbarSlider.background': '#8C959F40',
+      'scrollbarSlider.hoverBackground': '#8C959F60',
+      'scrollbarSlider.activeBackground': '#0969DA40',
+    },
+  });
 }
 
 export default function Editor({ onRun }) {
   const editorRef = useRef(null);
   const onRunRef = useRef(onRun);
-  const { files, activeFile, openTabs, updateFileContent, setActiveFile, closeTab } = useStore();
+  const { files, activeFile, openTabs, updateFileContent, setActiveFile, closeTab, theme } = useStore();
 
   // Keep the ref in sync so Monaco's command always calls the latest onRun
   useEffect(() => {
@@ -99,7 +137,7 @@ export default function Editor({ onRun }) {
   };
 
   const handleBeforeMount = (monaco) => {
-    defineTheme(monaco);
+    defineThemes(monaco);
   };
 
   const currentContent = activeFile ? (files[activeFile] ?? '') : '';
@@ -148,6 +186,7 @@ export default function Editor({ onRun }) {
             language="python"
             value={currentContent}
             options={MONACO_OPTIONS}
+            theme={theme === 'light' ? 'pyide-light' : 'pyide-dark'}
             onChange={(val) => updateFileContent(activeFile, val ?? '')}
             onMount={handleEditorDidMount}
             beforeMount={handleBeforeMount}

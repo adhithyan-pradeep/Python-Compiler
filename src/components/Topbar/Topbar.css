@@ -129,3 +129,11 @@
     font-size: 14px;
   }
 }
+
+.theme-toggle {
+  aspect-ratio: 1;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

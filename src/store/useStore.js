@@ -32,6 +32,9 @@ def factorial(n):
 const useStore = create(
   persist(
     (set, get) => ({
+      // Theme
+      theme: 'dark', // ponytail: simple theme state string
+
       // File system
       files: DEFAULT_FILES,
       activeFile: 'main.py',
@@ -43,6 +46,9 @@ const useStore = create(
 
       // Package manager
       installedPackages: [],
+
+      // Actions — theme
+      toggleTheme: () => set((s) => ({ theme: s.theme === 'light' ? 'dark' : 'light' })),
 
       // Actions — files
       createFile: (path, content = '') => {
@@ -126,6 +132,7 @@ const useStore = create(
     {
       name: 'pyide-storage',
       partialize: (state) => ({
+        theme: state.theme,
         files: state.files,
         activeFile: state.activeFile,
         openTabs: state.openTabs,

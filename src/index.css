@@ -38,6 +38,34 @@
   --yellow: #D29922;
 }
 
+/* Colors — Light theme (ponytail: native variables override) */
+:root[data-theme="light"] {
+  --bg-main:    #FFFFFF;
+  --bg-topbar:  #F6F8FA;
+  --bg-sidebar: #F6F8FA;
+  --bg-editor:  #FFFFFF;
+  --bg-panel:   #F6F8FA;
+  --bg-tabs:    #F6F8FA;
+  --bg-hover:   rgba(0, 0, 0, 0.05);
+  --bg-hover2:  rgba(0, 0, 0, 0.08);
+  --bg-input:   #FFFFFF;
+
+  --border:        #D0D7DE;
+  --border-active: #8C959F;
+
+  --text-primary:   #24292F;
+  --text-secondary: #57606A;
+  --text-muted:     #8C959F;
+
+  --accent:       #0969DA;
+  --accent-hover: #2188FF;
+  --accent-subtle: rgba(9, 105, 218, 0.1);
+
+  --green: #1A7F37;
+  --red:   #CF222E;
+  --yellow: #9A6700;
+}
+
 /* ===== RESET ===== */
 *, *::before, *::after {
   box-sizing: border-box;
