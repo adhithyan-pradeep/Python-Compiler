@@ -14,6 +14,7 @@
   justify-content: space-between;
   padding: 10px 12px 8px;
   border-bottom: 1px solid var(--border);
+  position: relative; /* ponytail: anchor templates dropdown */
 }
 
 .file-tree-title {
@@ -175,5 +176,41 @@
 }
 
 .tree-new-input-row button:hover {
+  color: var(--text-primary);
+}
+
+/* ponytail: templates dropdown styling */
+.templates-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 12px;
+  background: var(--bg-topbar);
+  border: 1px solid var(--border-active);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  z-index: 100;
+  width: 180px;
+  padding: 4px 0;
+  margin-top: 4px;
+}
+
+.templates-dropdown-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.templates-dropdown-item:hover {
+  background: var(--bg-hover);
   color: var(--text-primary);
 }

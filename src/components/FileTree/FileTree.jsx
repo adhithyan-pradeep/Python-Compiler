@@ -10,9 +10,34 @@ import {
   ChevronRight,
   ChevronDown,
   X,
+  Sparkles,
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import './FileTree.css';
+
+// ponytail: predefined code templates for bootstrapping files
+const TEMPLATES = [
+  {
+    name: 'Hello World',
+    filename: 'hello.py',
+    content: `# Simple greeting program\nname = input("What is your name? ")\nprint(f"Hello, {name}!")\n`,
+  },
+  {
+    name: 'Sorting (QuickSort)',
+    filename: 'sorting.py',
+    content: `# QuickSort algorithm demo\ndef quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quicksort(left) + middle + quicksort(right)\n\ntest_data = [3, 6, 8, 10, 1, 2, 1]\nprint("Original:", test_data)\nprint("Sorted:  ", quicksort(test_data))\n`,
+  },
+  {
+    name: 'Data Science Starter',
+    filename: 'data_science.py',
+    content: `# Requires pandas/numpy packages installed via Micropip\nimport pandas as pd\nimport numpy as np\n\n# Create a simple dataframe\ndf = pd.DataFrame({\n    "x": np.arange(1, 6),\n    "y": np.random.rand(5)\n})\nprint("DataFrame:")\nprint(df)\nprint("\\nSummary Stats:")\nprint(df.describe())\n`,
+  },
+  {
+    name: 'Matplotlib Plot',
+    filename: 'plot.py',
+    content: `# Requires matplotlib installed via Micropip\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nx = np.linspace(0, 10, 100)\ny = np.sin(x)\n\nplt.plot(x, y)\nplt.title("Sine Wave")\nplt.xlabel("x")\nplt.ylabel("sin(x)")\nplt.grid(True)\nprint("Matplotlib plot ready. Click Run to generate figures!")\n`,
+  },
+];
 
 function buildTree(files) {
   const root = {};
@@ -144,9 +169,25 @@ export default function FileTree() {
   const { files, createFile } = useStore();
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(null); // 'file' | 'folder'
+  const [showTemplates, setShowTemplates] = useState(false); // ponytail: toggle templates dropdown
   const inputRef = useRef(null);
 
   const tree = buildTree(files);
+
+  // ponytail: find non-conflicting filename for templates
+  const getUniqueFilename = (baseName) => {
+    if (!files[baseName]) return baseName;
+
+    const dotIndex = baseName.lastIndexOf('.');
+    const namePart = dotIndex !== -1 ? baseName.slice(0, dotIndex) : baseName;
+    const extPart = dotIndex !== -1 ? baseName.slice(dotIndex) : '';
+
+    let counter = 1;
+    while (files[`${namePart}_${counter}${extPart}`]) {
+      counter++;
+    }
+    return `${namePart}_${counter}${extPart}`;
+  };
 
   const handleCreate = () => {
     if (!newName.trim()) { setCreating(null); return; }
@@ -156,18 +197,47 @@ export default function FileTree() {
     setCreating(null);
   };
 
+  const handleSelectTemplate = (template) => {
+    const uniqueName = getUniqueFilename(template.filename);
+    createFile(uniqueName, template.content);
+    setShowTemplates(false);
+  };
+
   return (
     <div className="file-tree">
       <div className="file-tree-header">
         <span className="file-tree-title">EXPLORER</span>
         <div className="file-tree-toolbar">
-          <button title="New File" onClick={() => { setCreating('file'); setTimeout(() => inputRef.current?.focus(), 50); }}>
+          <button
+            title="Templates & Snippets"
+            onClick={() => setShowTemplates((prev) => !prev)}
+            className={showTemplates ? 'active' : ''}
+          >
+            <Sparkles size={14} />
+          </button>
+          <button title="New File" onClick={() => { setCreating('file'); setShowTemplates(false); setTimeout(() => inputRef.current?.focus(), 50); }}>
             <FilePlus size={14} />
           </button>
-          <button title="New Folder" onClick={() => { setCreating('folder'); setTimeout(() => inputRef.current?.focus(), 50); }}>
+          <button title="New Folder" onClick={() => { setCreating('folder'); setShowTemplates(false); setTimeout(() => inputRef.current?.focus(), 50); }}>
             <FolderPlus size={14} />
           </button>
         </div>
+
+        {/* ponytail: dropdown list of templates */}
+        {showTemplates && (
+          <div className="templates-dropdown">
+            {TEMPLATES.map((tmpl) => (
+              <button
+                key={tmpl.name}
+                className="templates-dropdown-item"
+                onClick={() => handleSelectTemplate(tmpl)}
+              >
+                <Sparkles size={12} />
+                <span>{tmpl.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {creating && (
