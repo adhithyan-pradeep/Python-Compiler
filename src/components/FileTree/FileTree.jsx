@@ -33,9 +33,9 @@ const TEMPLATES = [
     content: `# Requires pandas/numpy packages installed via Micropip\nimport pandas as pd\nimport numpy as np\n\n# Create a simple dataframe\ndf = pd.DataFrame({\n    "x": np.arange(1, 6),\n    "y": np.random.rand(5)\n})\nprint("DataFrame:")\nprint(df)\nprint("\\nSummary Stats:")\nprint(df.describe())\n`,
   },
   {
-    name: 'Matplotlib Plot',
-    filename: 'plot.py',
-    content: `# Requires matplotlib installed via Micropip\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nx = np.linspace(0, 10, 100)\ny = np.sin(x)\n\nplt.plot(x, y)\nplt.title("Sine Wave")\nplt.xlabel("x")\nplt.ylabel("sin(x)")\nplt.grid(True)\nprint("Matplotlib plot ready. Click Run to generate figures!")\n`,
+    name: 'Text Analyzer',
+    filename: 'text_analyzer.py',
+    content: `# Word frequency count demo\ntext = """\nPython is an interpreted, high-level, general-purpose programming language.\nPython's design philosophy emphasizes code readability with its notable use of significant whitespace.\n"""\n\ndef analyze_text(raw_text):\n    words = raw_text.lower().replace('.', '').replace(',', '').split()\n    freq = {}\n    for w in words:\n        freq[w] = freq.get(w, 0) + 1\n    return sorted(freq.items(), key=lambda x: x[1], reverse=True)[:5]\n\nprint("Top 5 words:")\nfor word, count in analyze_text(text):\n    print(f"- {word}: {count}")\n`,
   },
 ];
 
